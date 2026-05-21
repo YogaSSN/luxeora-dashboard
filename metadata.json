@@ -1,0 +1,6 @@
+{
+  "name": "LUXEORA",
+  "description": "LUXEORA is an ultra-premium, cinematic jewellery companion and digital palace offering timeless craftsmanship, personalized AI styling, and virtual showrooms.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
