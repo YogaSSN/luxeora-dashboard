@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/concierge",
+      "destination": "/api/concierge.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
