@@ -3,8 +3,10 @@ import { supabase } from '../../supabaseClient';
 import { Product } from '../../types';
 import { Loader2, Plus, Edit2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useData } from '../../contexts/DataContext';
 
 export default function ProductsManager() {
+  const { refreshData } = useData();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,7 +31,8 @@ export default function ProductsManager() {
       toast.error(error.message);
     } else {
       toast.success('Product deleted successfully');
-      fetchProducts();
+      await fetchProducts();
+      await refreshData();
     }
   };
 
@@ -70,7 +73,8 @@ export default function ProductsManager() {
       if (error) throw error;
       toast.success('Product saved successfully');
       setIsModalOpen(false);
-      fetchProducts();
+      await fetchProducts();
+      await refreshData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to save product');
     }

@@ -54,7 +54,7 @@ import {
 
 export default function App() {
   const { products: PRODUCTS, luxuryMoodsConfig: LUXURY_MOODS_CONFIG, loading: dataLoading } = useData();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const [appLoading, setAppLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -481,15 +481,14 @@ export default function App() {
                         onClick={async () => {
                           setProfileDropdownOpen(false);
                           try {
-                            const { error } = await supabase.auth.signOut();
-                            if (error) throw error;
+                            await logout();
                             toast.success('Sign out successful.');
                             setCurrentPage('home');
                           } catch (err: any) {
                             toast.error(err.message || 'Error signing out.');
                           }
                         }}
-                        className="text-left py-1.5 mt-2 border-t border-white/5 text-red-400 hover:text-red-300 transition-colors flex items-center gap-2 uppercase text-[10px] cursor-pointer"
+                        className="text-left py-1 text-gray-300 hover:text-red-400 transition-colors flex items-center gap-2 uppercase text-[10px] cursor-pointer mt-2 pt-2 border-t border-white/5"
                       >
                         <LogOut className="w-3.5 h-3.5" /> Secure Logout
                       </button>

@@ -14,6 +14,7 @@ interface DataContextType {
   stories: any[];
   luxuryMoodsConfig: Record<LuxuryMood, any>;
   loading: boolean;
+  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType>({
@@ -22,6 +23,7 @@ const DataContext = createContext<DataContextType>({
   stories: [],
   luxuryMoodsConfig: {} as Record<LuxuryMood, any>,
   loading: true,
+  refreshData: async () => {},
 });
 
 export const useData = () => useContext(DataContext);
@@ -33,71 +35,71 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [luxuryMoodsConfig, setLuxuryMoodsConfig] = useState<Record<LuxuryMood, any>>({} as Record<LuxuryMood, any>);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [moodsRes, productsRes, reviewsRes, zonesRes, hotspotsRes, storiesRes] = await Promise.all([
-          supabase.from('luxury_moods').select('*'),
-          supabase.from('products').select('*'),
-          supabase.from('product_reviews').select('*'),
-          supabase.from('showroom_zones').select('*'),
-          supabase.from('showroom_hotspots').select('*'),
-          supabase.from('stories').select('*')
-        ]);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [moodsRes, productsRes, reviewsRes, zonesRes, hotspotsRes, storiesRes] = await Promise.all([
+        supabase.from('luxury_moods').select('*'),
+        supabase.from('products').select('*'),
+        supabase.from('product_reviews').select('*'),
+        supabase.from('showroom_zones').select('*'),
+        supabase.from('showroom_hotspots').select('*'),
+        supabase.from('stories').select('*')
+      ]);
 
-        // Assemble Moods Config
-        const moodsConfig: any = { ...FALLBACK_MOODS };
-        if (moodsRes.data && moodsRes.data.length > 0) {
-          moodsRes.data.forEach(m => {
-            moodsConfig[m.id] = m;
-          });
-        }
-        setLuxuryMoodsConfig(moodsConfig);
-
-
-        // Assemble Products
-        if (productsRes.data && productsRes.data.length > 0) {
-          const assembledProducts = productsRes.data.map(p => {
-            const productReviews = reviewsRes.data?.filter(r => r.productId === p.id) || [];
-            return { ...p, reviews: productReviews };
-          });
-          setProducts(assembledProducts);
-        } else {
-          setProducts(FALLBACK_PRODUCTS);
-        }
-
-        // Assemble Zones
-        if (zonesRes.data && zonesRes.data.length > 0) {
-          const assembledZones = zonesRes.data.map(z => {
-            const zoneHotspots = hotspotsRes.data?.filter(h => h.zoneId === z.id) || [];
-            return { ...z, hotspots: zoneHotspots };
-          });
-          setShowroomZones(assembledZones);
-        } else {
-          setShowroomZones(FALLBACK_ZONES);
-        }
-
-        if (storiesRes.data && storiesRes.data.length > 0) {
-          setStories(storiesRes.data);
-        } else {
-          setStories(FALLBACK_STORIES);
-        }
-      } catch (err) {
-        console.error('Error fetching global data, falling back to local dataset:', err);
-        setLuxuryMoodsConfig(FALLBACK_MOODS);
-        setProducts(FALLBACK_PRODUCTS);
-        setShowroomZones(FALLBACK_ZONES);
-        setStories(FALLBACK_STORIES);
-      } finally {
-        setLoading(false);
+      // Assemble Moods Config
+      const moodsConfig: any = { ...FALLBACK_MOODS };
+      if (moodsRes.data && moodsRes.data.length > 0) {
+        moodsRes.data.forEach(m => {
+          moodsConfig[m.id] = m;
+        });
       }
-    };
+      setLuxuryMoodsConfig(moodsConfig);
 
+      // Assemble Products
+      if (productsRes.data && productsRes.data.length > 0) {
+        const assembledProducts = productsRes.data.map(p => {
+          const productReviews = reviewsRes.data?.filter(r => r.productId === p.id) || [];
+          return { ...p, reviews: productReviews };
+        });
+        setProducts(assembledProducts);
+      } else {
+        setProducts(FALLBACK_PRODUCTS);
+      }
+
+      // Assemble Zones
+      if (zonesRes.data && zonesRes.data.length > 0) {
+        const assembledZones = zonesRes.data.map(z => {
+          const zoneHotspots = hotspotsRes.data?.filter(h => h.zoneId === z.id) || [];
+          return { ...z, hotspots: zoneHotspots };
+        });
+        setShowroomZones(assembledZones);
+      } else {
+        setShowroomZones(FALLBACK_ZONES);
+      }
+
+      if (storiesRes.data && storiesRes.data.length > 0) {
+        setStories(storiesRes.data);
+      } else {
+        setStories(FALLBACK_STORIES);
+      }
+    } catch (err) {
+      console.error('Error fetching global data, falling back to local dataset:', err);
+      setLuxuryMoodsConfig(FALLBACK_MOODS);
+      setProducts(FALLBACK_PRODUCTS);
+      setShowroomZones(FALLBACK_ZONES);
+      setStories(FALLBACK_STORIES);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
   return (
-    <DataContext.Provider value={{ products, showroomZones, stories, luxuryMoodsConfig, loading }}>
+    <DataContext.Provider value={{ products, showroomZones, stories, luxuryMoodsConfig, loading, refreshData: fetchData }}>
       {children}
     </DataContext.Provider>
   );

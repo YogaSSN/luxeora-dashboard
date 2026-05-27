@@ -17,13 +17,13 @@ import {
 import toast from 'react-hot-toast';
 
 export default function AdminLayout() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      await logout();
       navigate('/');
       toast.success('Logged out securely.');
     } catch (error) {
