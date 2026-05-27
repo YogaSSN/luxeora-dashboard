@@ -46,15 +46,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ]);
 
         // Assemble Moods Config
-        const moodsConfig: any = {};
+        const moodsConfig: any = { ...FALLBACK_MOODS };
         if (moodsRes.data && moodsRes.data.length > 0) {
           moodsRes.data.forEach(m => {
             moodsConfig[m.id] = m;
           });
-          setLuxuryMoodsConfig(moodsConfig);
-        } else {
-          setLuxuryMoodsConfig(FALLBACK_MOODS);
         }
+        setLuxuryMoodsConfig(moodsConfig);
+
 
         // Assemble Products
         if (productsRes.data && productsRes.data.length > 0) {
