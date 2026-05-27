@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LuxePage, LuxuryMood, Product, CartItem } from './types';
-import { PRODUCTS, LUXURY_MOODS_CONFIG } from './data';
+import { useData } from './contexts/DataContext';
+import { useAuth } from './contexts/AuthContext';
+import { supabase } from './supabaseClient';
 
 // Subcomponents imports
 import MoodSelector from './components/MoodSelector';
@@ -13,6 +15,7 @@ import HomeView from './components/HomeView';
 import ProductViews from './components/ProductViews';
 import CartViews from './components/CartViews';
 import CinematicLoader from './components/CinematicLoader';
+import AuthModal from './components/AuthModal';
 
 // Content views imports
 import {
@@ -45,7 +48,10 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
+  const { products: PRODUCTS, luxuryMoodsConfig: LUXURY_MOODS_CONFIG, loading: dataLoading } = useData();
+  const { user, isAdmin } = useAuth();
+  const [appLoading, setAppLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<LuxePage>('home');
   const [currentMood, setCurrentMood] = useState<LuxuryMood>('royal');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -70,51 +76,92 @@ export default function App() {
     document.title = `LUXEORA — Crafted Brilliance. Timeless Luxury.`;
   }, []);
 
+  // Data loading effect for Cart & Wishlist
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!user || PRODUCTS.length === 0) return;
+      try {
+        const [cartRes, wishlistRes] = await Promise.all([
+          supabase.from('cart_items').select('*').eq('user_id', user.id),
+          supabase.from('wishlist_items').select('*').eq('user_id', user.id)
+        ]);
+
+        if (cartRes.data) {
+          const loadedCart = cartRes.data.map(item => {
+            const p = PRODUCTS.find(prod => prod.id === item.product_id);
+            if (p) return { product: p, quantity: item.quantity, selectedSize: item.selected_size };
+            return null;
+          }).filter(Boolean) as CartItem[];
+          setCart(loadedCart);
+        }
+
+        if (wishlistRes.data) {
+          const loadedWishlist = wishlistRes.data.map(item => PRODUCTS.find(prod => prod.id === item.product_id)).filter(Boolean) as Product[];
+          setWishlist(loadedWishlist);
+        }
+      } catch (e) {
+        console.error('Error loading user data:', e);
+      }
+    };
+
+    if (user) {
+      loadUserData();
+    } else {
+      setCart([]);
+      setWishlist([]);
+    }
+  }, [user, PRODUCTS]);
+
   // Handlers for cart & wishlist interaction
-  const handleAddToWishlist = (product: Product) => {
-    setWishlist((prev) => {
-      const exists = prev.some((p) => p.id === product.id);
-      if (exists) {
-        return prev.filter((p) => p.id !== product.id);
-      }
-      return [...prev, product];
-    });
+  const handleAddToWishlist = async (product: Product) => {
+    if (!user) { setAuthModalOpen(true); return; }
+    
+    const exists = wishlist.some((p) => p.id === product.id);
+    if (exists) {
+      setWishlist(prev => prev.filter((p) => p.id !== product.id));
+      await supabase.from('wishlist_items').delete().eq('user_id', user.id).eq('product_id', product.id);
+    } else {
+      setWishlist(prev => [...prev, product]);
+      await supabase.from('wishlist_items').insert({ user_id: user.id, product_id: product.id });
+    }
   };
 
-  const handleAddToCart = (product: Product) => {
-    setCart((prev) => {
-      const existingItem = prev.find((item) => item.product.id === product.id);
-      if (existingItem) {
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prev, { product, quantity: 1 }];
-    });
+  const handleAddToCart = async (product: Product) => {
+    if (!user) { setAuthModalOpen(true); return; }
+
+    const existingItem = cart.find((item) => item.product.id === product.id);
+    if (existingItem) {
+      setCart(prev => prev.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
+      await supabase.from('cart_items').update({ quantity: existingItem.quantity + 1 }).eq('user_id', user.id).eq('product_id', product.id);
+    } else {
+      setCart(prev => [...prev, { product, quantity: 1 }]);
+      await supabase.from('cart_items').insert({ user_id: user.id, product_id: product.id, quantity: 1 });
+    }
   };
 
-  const handleUpdateCartQty = (productId: string, qty: number) => {
-    setCart((prev) =>
-      prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity: qty } : item
-      )
-    );
+  const handleUpdateCartQty = async (productId: string, qty: number) => {
+    if (!user) return;
+    setCart(prev => prev.map((item) => item.product.id === productId ? { ...item, quantity: qty } : item));
+    await supabase.from('cart_items').update({ quantity: qty }).eq('user_id', user.id).eq('product_id', productId);
   };
 
-  const handleRemoveCartItem = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  const handleRemoveCartItem = async (productId: string) => {
+    if (!user) return;
+    setCart(prev => prev.filter((item) => item.product.id !== productId));
+    await supabase.from('cart_items').delete().eq('user_id', user.id).eq('product_id', productId);
   };
 
-  const handleClearCart = () => {
+  const handleClearCart = async () => {
+    if (!user) return;
     setCart([]);
+    await supabase.from('cart_items').delete().eq('user_id', user.id);
   };
 
-  const activeMoodConfig = LUXURY_MOODS_CONFIG[currentMood];
+  const isDataReady = !dataLoading && LUXURY_MOODS_CONFIG && LUXURY_MOODS_CONFIG[currentMood];
+  const activeMoodConfig = isDataReady ? LUXURY_MOODS_CONFIG[currentMood] : null;
 
-  if (loading) {
-    return <CinematicLoader onComplete={() => setLoading(false)} />;
+  if (appLoading || !isDataReady) {
+    return <CinematicLoader onComplete={() => setAppLoading(false)} />;
   }
 
   return (
@@ -331,7 +378,10 @@ export default function App() {
 
             {/* Wishlist Icon */}
             <button
-              onClick={() => setCurrentPage('wishlist')}
+              onClick={() => {
+                if (!user) setAuthModalOpen(true);
+                else setCurrentPage('wishlist');
+              }}
               className="relative p-2 hover:bg-white/5 text-gray-300 hover:text-white rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="Portfolio Portfolio"
             >
@@ -345,7 +395,10 @@ export default function App() {
 
             {/* Shopping cart icon */}
             <button
-              onClick={() => setCurrentPage('cart')}
+              onClick={() => {
+                if (!user) setAuthModalOpen(true);
+                else setCurrentPage('cart');
+              }}
               className="relative p-2 hover:bg-white/5 text-gray-300 hover:text-white rounded-full transition-colors flex items-center justify-center cursor-pointer"
               title="Acquisition Bag"
             >
@@ -355,6 +408,20 @@ export default function App() {
                   {cart.reduce((a, b) => a + b.quantity, 0)}
                 </span>
               )}
+            </button>
+
+            {/* User Login/Profile */}
+            <button
+              onClick={() => {
+                if (!user) setAuthModalOpen(true);
+                else setCurrentPage('membership');
+              }}
+              className={`relative p-2 rounded-full transition-colors flex items-center justify-center cursor-pointer ${
+                user ? 'text-[#D4AF37] hover:bg-[#D4AF37]/10' : 'text-gray-300 hover:bg-white/5 hover:text-white'
+              }`}
+              title={user ? 'Your Profile' : 'Login'}
+            >
+              <User className="w-5 h-5" />
             </button>
 
             {/* Mobile Hamburger menu toggle */}
@@ -671,6 +738,9 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Login / Auth Modal */}
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>
   );
 }

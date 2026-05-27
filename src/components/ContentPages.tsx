@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { STORIES } from '../data';
+import { useData } from '../contexts/DataContext';
 import { Crown, Mail, Phone, MapPin, ShieldCheck, HelpCircle, Send, CheckCircle2, Award, Clock } from 'lucide-react';
 
 /* Royal Membership component */
@@ -103,16 +103,16 @@ export function RoyalMembership() {
 
 /* Story Collections component */
 export function StoryCollections() {
+  const { stories: STORIES } = useData();
   return (
-    <div id="stories-page" className="py-12 max-w-5xl mx-auto text-white">
-      <div className="text-center mb-12">
-        <Award className="w-10 h-10 text-[#D4AF37] mx-auto mb-2" />
-        <h1 className="text-4xl font-serif">Curated Linages & Legends</h1>
-        <p className="text-xs font-mono text-[#D4AF37] tracking-[0.3em] uppercase mt-1">Artistry Behind the Forge</p>
+    <div id="stories-page" className="py-12 max-w-5xl mx-auto px-4">
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-serif text-[#D4AF37] mb-2">Heritage & Sagas</h1>
+        <p className="text-xs font-mono tracking-widest uppercase text-gray-400">Chronicles of high craftsmanship</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {STORIES.map((story) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {STORIES.map(story => (
           <div key={story.id} className="bg-zinc-950 rounded-2xl border border-white/5 overflow-hidden flex flex-col justify-between group">
             <div className="relative aspect-[4/3] overflow-hidden">
               <img

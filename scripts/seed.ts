@@ -1,20 +1,25 @@
-import { Product, ShowroomZone, LuxuryMood } from './types';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import path from 'path';
 
-// @ts-ignore
+// Load environment variables
+dotenv.config();
 
-export const LUXURY_MOODS_CONFIG: Record<
-  LuxuryMood,
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Error: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env');
+  console.error('The Service Role Key is required to securely bypass RLS during seeding.');
+  process.exit(1);
+}
+
+// Use the Service Role Key for backend administration tasks (bypasses RLS)
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+const LUXURY_MOODS = [
   {
-    name: string;
-    description: string;
-    ambientBg: string;
-    accentColor: string;
-    cardStyle: string;
-    glowStyle: string;
-    fonts: string;
-  }
-> = {
-  royal: {
+    id: 'royal',
     name: 'Royal Heritage',
     description: 'Immerse in the timeless majesty of emperors and ancient dynastic craft.',
     ambientBg: 'bg-gradient-to-br from-[#0B0B0B] via-[#0D1117] to-[#121A2A]',
@@ -23,7 +28,8 @@ export const LUXURY_MOODS_CONFIG: Record<
     glowStyle: 'shadow-[0_0_15px_rgba(212,175,55,0.25)]',
     fonts: 'font-[#D4AF37]'
   },
-  romantic: {
+  {
+    id: 'romantic',
     name: 'Eternal Romance',
     description: 'Blush rose gold tones designed for soulmates, anniversaries, and soft promises.',
     ambientBg: 'bg-gradient-to-br from-[#0C0709] via-[#1A0D13] to-[#251019]',
@@ -32,7 +38,8 @@ export const LUXURY_MOODS_CONFIG: Record<
     glowStyle: 'shadow-[0_0_15px_rgba(224,168,153,0.25)]',
     fonts: 'font-[#E0A899]'
   },
-  elegant: {
+  {
+    id: 'elegant',
     name: 'Sovereign Green',
     description: 'Deep royal emerald velvet themes paired with platinum-grade elements.',
     ambientBg: 'bg-gradient-to-br from-[#030605] via-[#051410] to-[#0A261D]',
@@ -41,7 +48,8 @@ export const LUXURY_MOODS_CONFIG: Record<
     glowStyle: 'shadow-[0_0_15px_rgba(16,185,129,0.25)]',
     fonts: 'font-[#10B981]'
   },
-  minimal: {
+  {
+    id: 'minimal',
     name: 'Modernist Purity',
     description: 'Crisp layout focusing on absolute negative space, thin contours, and raw diamonds.',
     ambientBg: 'bg-gradient-to-br from-[#FAF9F6] via-[#F4F3EF] to-[#EAE9E4] text-gray-900',
@@ -50,7 +58,8 @@ export const LUXURY_MOODS_CONFIG: Record<
     glowStyle: 'shadow-[0_4px_24px_rgba(0,0,0,0.06)]',
     fonts: 'font-zinc-800'
   },
-  vintage: {
+  {
+    id: 'vintage',
     name: 'Antique Grandeur',
     description: 'Dusty gold sepia finishes echoing centuries-old heritage filigree.',
     ambientBg: 'bg-gradient-to-br from-[#0A0807] via-[#1C130E] to-[#2E1F16]',
@@ -59,7 +68,8 @@ export const LUXURY_MOODS_CONFIG: Record<
     glowStyle: 'shadow-[0_0_15px_rgba(194,159,108,0.25)]',
     fonts: 'font-[#C29F6C]'
   },
-  bold: {
+  {
+    id: 'bold',
     name: 'Avant-Garde Ruby',
     description: 'Daring geometries and heavy obsidian structures lit by molten red rubies.',
     ambientBg: 'bg-gradient-to-br from-[#050102] via-[#1A0307] to-[#31050F]',
@@ -68,9 +78,9 @@ export const LUXURY_MOODS_CONFIG: Record<
     glowStyle: 'shadow-[0_0_15px_rgba(239,68,68,0.25)]',
     fonts: 'font-[#EF4444]'
   }
-};
+];
 
-export const PRODUCTS: Product[] = [
+const PRODUCTS = [
   {
     id: 'luxe-01',
     name: 'Imperial Mughal Emerald Choker',
@@ -375,7 +385,7 @@ export const PRODUCTS: Product[] = [
   }
 ];
 
-export const SHOWROOM_ZONES: ShowroomZone[] = [
+const SHOWROOM_ZONES = [
   {
     id: 'diamond',
     name: 'Diamond Lounge',
@@ -425,7 +435,7 @@ export const SHOWROOM_ZONES: ShowroomZone[] = [
   }
 ];
 
-export const STORIES = [
+const STORIES = [
   {
     id: 'st-01',
     title: 'The Mughal Filigree Renaissance',
@@ -454,3 +464,98 @@ export const STORIES = [
     duration: '6 min read'
   }
 ];
+
+async function seed() {
+  console.log('--- Starting Luxeora Seeding Process ---');
+
+  console.log('Seeding luxury_moods...');
+  const { error: moodError } = await supabase.from('luxury_moods').upsert(LUXURY_MOODS);
+  if (moodError) {
+    console.error('Failed to seed luxury_moods. Maybe the table is not created yet? Details:', moodError.message);
+    process.exit(1);
+  }
+  console.log('Successfully seeded luxury_moods.');
+
+  console.log('Seeding products...');
+  const productInsertData = PRODUCTS.map(({ reviews, ...product }) => product);
+  const { error: productError } = await supabase.from('products').upsert(productInsertData);
+  if (productError) {
+    console.error('Failed to seed products:', productError.message);
+    process.exit(1);
+  }
+  console.log('Successfully seeded products.');
+
+  console.log('Seeding product_reviews...');
+  const allReviews: any[] = [];
+  PRODUCTS.forEach(p => {
+    if (p.reviews && p.reviews.length > 0) {
+      p.reviews.forEach(r => {
+        allReviews.push({
+          productId: p.id,
+          author: r.author,
+          rating: r.rating,
+          date: r.date,
+          comment: r.comment
+        });
+      });
+    }
+  });
+
+  if (allReviews.length > 0) {
+    await supabase.from('product_reviews').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error: reviewsError } = await supabase.from('product_reviews').insert(allReviews);
+    if (reviewsError) {
+      console.error('Failed to seed product_reviews:', reviewsError.message);
+      process.exit(1);
+    }
+    console.log(`Successfully seeded ${allReviews.length} reviews.`);
+  }
+
+  console.log('Seeding showroom_zones...');
+  const zoneInsertData = SHOWROOM_ZONES.map(({ hotspots, ...zone }) => zone);
+  const { error: zoneError } = await supabase.from('showroom_zones').upsert(zoneInsertData);
+  if (zoneError) {
+    console.error('Failed to seed showroom_zones:', zoneError.message);
+    process.exit(1);
+  }
+  console.log('Successfully seeded showroom_zones.');
+
+  console.log('Seeding showroom_hotspots...');
+  const allHotspots: any[] = [];
+  SHOWROOM_ZONES.forEach(z => {
+    z.hotspots.forEach(hs => {
+      allHotspots.push({
+        id: hs.id,
+        zoneId: z.id,
+        productId: hs.productId,
+        x: hs.x,
+        y: hs.y,
+        title: hs.title,
+        price: hs.price,
+        shimmerColor: hs.shimmerColor
+      });
+    });
+  });
+
+  const { error: hotspotsError } = await supabase.from('showroom_hotspots').upsert(allHotspots);
+  if (hotspotsError) {
+    console.error('Failed to seed showroom_hotspots:', hotspotsError.message);
+    process.exit(1);
+  }
+  console.log('Successfully seeded showroom_hotspots.');
+
+  console.log('Seeding stories...');
+  const { error: storiesError } = await supabase.from('stories').upsert(STORIES);
+  if (storiesError) {
+    console.error('Failed to seed stories:', storiesError.message);
+    process.exit(1);
+  }
+  console.log('Successfully seeded stories.');
+
+  console.log('--- Luxeora Seeding Completed Successfully ---');
+}
+
+seed().catch(err => {
+  console.error('Unexpected error during seeding:', err);
+  process.exit(1);
+});

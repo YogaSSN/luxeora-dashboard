@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { SHOWROOM_ZONES } from '../data';
+import { useData } from '../contexts/DataContext';
 import { Product, ShowroomZone } from '../types';
 import { Compass, Sparkles, Orbit, ShoppingBag, Eye, Heart, ArrowRight } from 'lucide-react';
 
@@ -25,7 +25,7 @@ const getHotspotTheme = (prod?: Product) => {
 
 interface VirtualShowroomProps {
   products: Product[];
-  onSelectProduct: (productId: string) => void;
+  onSelectProduct: (id: string) => void;
   onAddToWishlist: (product: Product) => void;
   wishlist: Product[];
 }
@@ -36,6 +36,7 @@ export default function VirtualShowroom({
   onAddToWishlist,
   wishlist
 }: VirtualShowroomProps) {
+  const { showroomZones: SHOWROOM_ZONES } = useData();
   const [activeZoneId, setActiveZoneId] = useState<string>('diamond');
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [selectedProductPreview, setSelectedProductPreview] = useState<Product | null>(null);
