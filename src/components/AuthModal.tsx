@@ -52,12 +52,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       let errMsg = err.message || 'Authentication failed';
       if (errMsg.toLowerCase().includes('rate limit')) {
         errMsg = 'Request rate limit exceeded. Please wait a few minutes before trying again, or try logging in if you already have an account.';
+      } else if (errMsg.toLowerCase().includes('confirmation email')) {
+        errMsg = 'Confirmation email failed to send. This occurs when your email server (SMTP) in Supabase is not yet configured. To bypass this, go to your Supabase Dashboard -> Authentication -> Providers -> Email, and disable "Confirm Email" for instant logins.';
       }
       setError(errMsg);
     } finally {
       setLoading(false);
     }
   };
+
 
 
   return (
