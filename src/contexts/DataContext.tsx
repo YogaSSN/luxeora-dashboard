@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Product, ShowroomZone, LuxuryMood } from '../types';
+import { 
+  LUXURY_MOODS_CONFIG as FALLBACK_MOODS, 
+  PRODUCTS as FALLBACK_PRODUCTS, 
+  SHOWROOM_ZONES as FALLBACK_ZONES, 
+  STORIES as FALLBACK_STORIES 
+} from '../data';
 
 interface DataContextType {
   products: Product[];
@@ -41,36 +47,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Assemble Moods Config
         const moodsConfig: any = {};
-        if (moodsRes.data) {
+        if (moodsRes.data && moodsRes.data.length > 0) {
           moodsRes.data.forEach(m => {
             moodsConfig[m.id] = m;
           });
+          setLuxuryMoodsConfig(moodsConfig);
+        } else {
+          setLuxuryMoodsConfig(FALLBACK_MOODS);
         }
-        setLuxuryMoodsConfig(moodsConfig);
 
         // Assemble Products
-        if (productsRes.data) {
+        if (productsRes.data && productsRes.data.length > 0) {
           const assembledProducts = productsRes.data.map(p => {
             const productReviews = reviewsRes.data?.filter(r => r.productId === p.id) || [];
             return { ...p, reviews: productReviews };
           });
           setProducts(assembledProducts);
+        } else {
+          setProducts(FALLBACK_PRODUCTS);
         }
 
         // Assemble Zones
-        if (zonesRes.data) {
+        if (zonesRes.data && zonesRes.data.length > 0) {
           const assembledZones = zonesRes.data.map(z => {
             const zoneHotspots = hotspotsRes.data?.filter(h => h.zoneId === z.id) || [];
             return { ...z, hotspots: zoneHotspots };
           });
           setShowroomZones(assembledZones);
+        } else {
+          setShowroomZones(FALLBACK_ZONES);
         }
 
-        if (storiesRes.data) {
+        if (storiesRes.data && storiesRes.data.length > 0) {
           setStories(storiesRes.data);
+        } else {
+          setStories(FALLBACK_STORIES);
         }
       } catch (err) {
-        console.error('Error fetching global data:', err);
+        console.error('Error fetching global data, falling back to local dataset:', err);
+        setLuxuryMoodsConfig(FALLBACK_MOODS);
+        setProducts(FALLBACK_PRODUCTS);
+        setShowroomZones(FALLBACK_ZONES);
+        setStories(FALLBACK_STORIES);
       } finally {
         setLoading(false);
       }
@@ -85,3 +103,4 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </DataContext.Provider>
   );
 };
+
