@@ -18,49 +18,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Check active session
+    let active = true;
+
+    const checkAdminStatus = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+        
+        if (active) {
+          if (!error && data && data.role === 'admin') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      if (!active) return;
       if (session?.user) {
+        setUser(session.user);
         checkAdminStatus(session.user.id);
       } else {
+        setUser(null);
+        setIsAdmin(false);
         setLoading(false);
       }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdminStatus(session.user.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!active) return;
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAdmin(false);
+        setLoading(false);
+      } else if (session?.user) {
+        setUser(session.user);
+        setLoading(true);
+        await checkAdminStatus(session.user.id);
       } else {
+        setUser(null);
         setIsAdmin(false);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
-
-  const checkAdminStatus = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      
-      if (!error && data && data.role === 'admin') {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-    } catch (err) {
-      console.error('Error checking admin status:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <AuthContext.Provider value={{ user, loading, isAdmin }}>
@@ -68,3 +88,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+

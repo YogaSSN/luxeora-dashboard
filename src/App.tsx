@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { LuxePage, LuxuryMood, Product, CartItem } from './types';
 import { useData } from './contexts/DataContext';
 import { useAuth } from './contexts/AuthContext';
 import { supabase } from './supabaseClient';
+import toast from 'react-hot-toast';
 
 // Subcomponents imports
 import MoodSelector from './components/MoodSelector';
@@ -44,14 +46,19 @@ import {
   PhoneCall,
   User,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  LogOut,
+  LayoutDashboard
 } from 'lucide-react';
+
 
 export default function App() {
   const { products: PRODUCTS, luxuryMoodsConfig: LUXURY_MOODS_CONFIG, loading: dataLoading } = useData();
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [appLoading, setAppLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<LuxePage>('home');
   const [currentMood, setCurrentMood] = useState<LuxuryMood>('royal');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -69,7 +76,9 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setMobileMenuOpen(false);
     setMegaMenuOpen(false);
+    setProfileDropdownOpen(false);
   }, [currentPage]);
+
 
   // Sync index title
   useEffect(() => {
@@ -410,19 +419,85 @@ export default function App() {
               )}
             </button>
 
-            {/* User Login/Profile */}
-            <button
-              onClick={() => {
-                if (!user) setAuthModalOpen(true);
-                else setCurrentPage('membership');
-              }}
-              className={`relative p-2 rounded-full transition-colors flex items-center justify-center cursor-pointer ${
-                user ? 'text-[#D4AF37] hover:bg-[#D4AF37]/10' : 'text-gray-300 hover:bg-white/5 hover:text-white'
-              }`}
-              title={user ? 'Your Profile' : 'Login'}
-            >
-              <User className="w-5 h-5" />
-            </button>
+            {/* User Login/Profile Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (!user) {
+                    setAuthModalOpen(true);
+                  } else {
+                    setProfileDropdownOpen(!profileDropdownOpen);
+                  }
+                }}
+                className={`relative p-2 rounded-full transition-colors flex items-center justify-center cursor-pointer ${
+                  user ? 'text-[#D4AF37] hover:bg-[#D4AF37]/10' : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                }`}
+                title={user ? 'Your Profile' : 'Login'}
+              >
+                <User className="w-5 h-5" />
+              </button>
+
+              <AnimatePresence>
+                {user && profileDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-64 bg-[#0B0B0B] border border-[#D4AF37]/30 shadow-[0_4px_25px_rgba(0,0,0,0.5)] z-50 p-4 flex flex-col font-mono text-[11px] tracking-wider rounded-none"
+                    onMouseLeave={() => setProfileDropdownOpen(false)}
+                  >
+                    <div className="border-b border-white/5 pb-3 mb-3">
+                      <p className="text-[#D4AF37] font-serif text-xs uppercase tracking-widest truncate">
+                        {user.user_metadata?.full_name || 'Bespoke Member'}
+                      </p>
+                      <p className="text-gray-500 text-[9px] lowercase truncate mt-1">{user.email}</p>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => {
+                          setCurrentPage('membership');
+                          setProfileDropdownOpen(false);
+                        }}
+                        className="text-left py-1 text-gray-300 hover:text-[#D4AF37] transition-colors flex items-center gap-2 uppercase text-[10px] cursor-pointer"
+                      >
+                        <Crown className="w-3.5 h-3.5" /> Royal Membership
+                      </button>
+
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            setProfileDropdownOpen(false);
+                            navigate('/admin');
+                          }}
+                          className="text-left py-1 text-gray-300 hover:text-[#D4AF37] transition-colors flex items-center gap-2 uppercase text-[10px] cursor-pointer"
+                        >
+                          <LayoutDashboard className="w-3.5 h-3.5" /> Command Center
+                        </button>
+                      )}
+
+                      <button
+                        onClick={async () => {
+                          setProfileDropdownOpen(false);
+                          try {
+                            const { error } = await supabase.auth.signOut();
+                            if (error) throw error;
+                            toast.success('Sign out successful.');
+                            setCurrentPage('home');
+                          } catch (err: any) {
+                            toast.error(err.message || 'Error signing out.');
+                          }
+                        }}
+                        className="text-left py-1.5 mt-2 border-t border-white/5 text-red-400 hover:text-red-300 transition-colors flex items-center gap-2 uppercase text-[10px] cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" /> Secure Logout
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Mobile Hamburger menu toggle */}
             <button

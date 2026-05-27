@@ -26,6 +26,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
 
@@ -45,15 +46,19 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           }
         });
         if (error) throw error;
-        // In Supabase, if email confirmations are off, this logs them in immediately.
         onClose();
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      let errMsg = err.message || 'Authentication failed';
+      if (errMsg.toLowerCase().includes('rate limit')) {
+        errMsg = 'Request rate limit exceeded. Please wait a few minutes before trying again, or try logging in if you already have an account.';
+      }
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <AnimatePresence>
@@ -100,9 +105,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     <input
                       type="text"
                       required
+                      disabled={loading}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full border border-gray-800 bg-[#161B22] py-2 pl-10 pr-4 text-sm text-white focus:border-[#D4AF37] focus:outline-none"
+                      className="w-full border border-gray-800 bg-[#161B22] py-2 pl-10 pr-4 text-sm text-white focus:border-[#D4AF37] focus:outline-none disabled:opacity-50"
                       placeholder="Your preferred title"
                     />
                   </div>
@@ -116,9 +122,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <input
                     type="email"
                     required
+                    disabled={loading}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border border-gray-800 bg-[#161B22] py-2 pl-10 pr-4 text-sm text-white focus:border-[#D4AF37] focus:outline-none"
+                    className="w-full border border-gray-800 bg-[#161B22] py-2 pl-10 pr-4 text-sm text-white focus:border-[#D4AF37] focus:outline-none disabled:opacity-50"
                     placeholder="name@example.com"
                   />
                 </div>
@@ -131,13 +138,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <input
                     type="password"
                     required
+                    disabled={loading}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full border border-gray-800 bg-[#161B22] py-2 pl-10 pr-4 text-sm text-white focus:border-[#D4AF37] focus:outline-none"
+                    className="w-full border border-gray-800 bg-[#161B22] py-2 pl-10 pr-4 text-sm text-white focus:border-[#D4AF37] focus:outline-none disabled:opacity-50"
                     placeholder="••••••••"
                   />
                 </div>
               </div>
+
 
               {error && (
                 <div className="text-xs text-red-400 text-center border border-red-900/50 bg-red-900/10 p-2">
