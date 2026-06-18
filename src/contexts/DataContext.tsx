@@ -37,6 +37,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchData = async () => {
     setLoading(true);
+    let timeoutId: NodeJS.Timeout;
     try {
       const fetchPromise = Promise.all([
         supabase.from('luxury_moods').select('*'),
@@ -47,33 +48,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         supabase.from('stories').select('*')
       ]);
 
-      // Add a 7-second timeout to prevent infinite loading on ad-blockers or slow networks
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Supabase fetch timeout')), 7000);
+        timeoutId = setTimeout(() => reject(new Error('Supabase fetch timeout')), 7000);
       });
 
       const [moodsRes, productsRes, reviewsRes, zonesRes, hotspotsRes, storiesRes] = 
         await Promise.race([fetchPromise, timeoutPromise]) as any;
 
+      clearTimeout(timeoutId!);
+
       // Assemble Moods Config
       const moodsConfig: any = { ...FALLBACK_MOODS };
-      if (moodsRes.data && moodsRes.data.length > 0) {
-        moodsRes.data.forEach(m => {
+      if (moodsRes?.data && moodsRes.data.length > 0) {
+        moodsRes.data.forEach((m: any) => {
           moodsConfig[m.id] = m;
         });
       }
       setLuxuryMoodsConfig(moodsConfig);
 
-      // Assemble Products
-      if (productsRes.data && productsRes.data.length > 0) {
-        const assembledProducts = productsRes.data.map(p => {
-          const productReviews = reviewsRes.data?.filter(r => r.productId === p.id) || [];
+      // Assemble Products - Merge DB with Fallbacks
+      let assembledProducts = [...FALLBACK_PRODUCTS];
+      if (productsRes?.data && productsRes.data.length > 0) {
+        const dbProducts = productsRes.data.map((p: any) => {
+          const productReviews = reviewsRes?.data?.filter((r: any) => r.productId === p.id) || [];
           return { ...p, reviews: productReviews };
         });
-        setProducts(assembledProducts);
-      } else {
-        setProducts(FALLBACK_PRODUCTS);
+        
+        // Merge so admin added items show up alongside fallbacks
+        dbProducts.forEach((dbP: any) => {
+          const idx = assembledProducts.findIndex(p => p.id === dbP.id);
+          if (idx !== -1) assembledProducts[idx] = dbP;
+          else assembledProducts.push(dbP);
+        });
       }
+      setProducts(assembledProducts);
 
       // Assemble Zones
       if (zonesRes.data && zonesRes.data.length > 0) {
@@ -98,6 +106,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShowroomZones(FALLBACK_ZONES);
       setStories(FALLBACK_STORIES);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setLoading(false);
     }
   };
