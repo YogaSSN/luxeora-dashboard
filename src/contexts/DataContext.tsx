@@ -38,7 +38,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [moodsRes, productsRes, reviewsRes, zonesRes, hotspotsRes, storiesRes] = await Promise.all([
+      const fetchPromise = Promise.all([
         supabase.from('luxury_moods').select('*'),
         supabase.from('products').select('*'),
         supabase.from('product_reviews').select('*'),
@@ -46,6 +46,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         supabase.from('showroom_hotspots').select('*'),
         supabase.from('stories').select('*')
       ]);
+
+      // Add a 7-second timeout to prevent infinite loading on ad-blockers or slow networks
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Supabase fetch timeout')), 7000);
+      });
+
+      const [moodsRes, productsRes, reviewsRes, zonesRes, hotspotsRes, storiesRes] = 
+        await Promise.race([fetchPromise, timeoutPromise]) as any;
 
       // Assemble Moods Config
       const moodsConfig: any = { ...FALLBACK_MOODS };
