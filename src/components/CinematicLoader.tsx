@@ -43,6 +43,9 @@ export default function CinematicLoader({ onComplete }: CinematicLoaderProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     const timers = [
       setTimeout(() => setStage(2), 500),
@@ -51,12 +54,12 @@ export default function CinematicLoader({ onComplete }: CinematicLoaderProps) {
       setTimeout(() => setStage(5), 3800),
       setTimeout(() => {
         setStage(6);
-        setTimeout(onComplete, 800); // Wait for transition fade to finish
+        setTimeout(() => onCompleteRef.current(), 800); // Wait for transition fade to finish
       }, 5200),
     ];
 
     return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
